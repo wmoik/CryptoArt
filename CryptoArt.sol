@@ -1,10 +1,10 @@
 pragma solidity ^0.4.8;
-contract CryptoArt {
+contract cryptoArt {
 
     // Test Hash Here
     // string public imageHash = "HASH";
 
-    address Owner
+    address Owner;
 
     string public standard = 'CryptoArt';
     string public name;
@@ -40,7 +40,7 @@ contract CryptoArt {
     }
 
     // A record of CART that are offered for sale at a specific minimum value, and perhaps to a specific person
-    mapping (uint => Offer) public artsOfferedForSale
+    mapping (uint => Offer) public artsOfferedForSale;
 
     // A record of the highest art bid
     mapping (uint => Bid) public artBids;
@@ -53,11 +53,11 @@ contract CryptoArt {
     event Transfer(address indexed from, address indexed to, uint256 artIndex);
     event ArtTransfer(address indexed from, address indexed to, uint256 artIndex);
     event ArtOffered(uint indexed artIndex, uint minValue, address indexed toAddress);
-    event ArtBidEntered(uint indeced artIndex, uint value, address indeced fromAddress);
-    event ArtBidWithdrawn(uint indeced artIndex, uint value, address indexed fromAddress);
+    event ArtBidEntered(uint indexed artIndex, uint value, address indexed fromAddress);
+    event ArtBidWithdrawn(uint indexed artIndex, uint value, address indexed fromAddress);
     event ArtBought(uint indexed artIndex, uint value, address indexed fromAddress, address indexed toAddress);
     event ArtNoLongerForSale(uint indexed artIndex);
-    event ArtCreation(uint256 artIndex, uint256 indexed hashOfArt)
+    event ArtCreation(uint256 artIndex, uint256 indexed hashOfArt);
 
     /* Initialized contract with initial supply token to the creator of the contract */
     // The payable keyword here defines that this contract can accept ether, otherwise it will be rejected
@@ -95,7 +95,7 @@ contract CryptoArt {
 
     //Transfer ownership of an artwork to another user without requiring payment
     function transferArt(address to, uint artIndex) {
-      if (artIndexToAddress[artIndex]) != msg.sender) throw; //if the msg sender does not own the art work being transferred, then Stop
+      if (artIndexToAddress[artIndex] != msg.sender) throw; //if the msg sender does not own the art work being transferred, then Stop
       if (artIndex >= nextArtIndexToAssign) throw;
       if (artsOfferedForSale[artIndex].isForSale) {
         ArtNoLongerForSale(artIndex); // If the artwork was listed for sale and now it is transferred, set it to Not For Sale;
@@ -117,7 +117,7 @@ contract CryptoArt {
 
     function artNoLongerForSale(uint artIndex) {
       if (artIndexToAddress[artIndex] != msg.sender) throw; // if message sender does not own the artwork, they cannot call fxn
-      if (artIndex >= nextArtIndexToAssign) throw //If the index is above the upper limit of carts created
+      if (artIndex >= nextArtIndexToAssign) throw; //If the index is above the upper limit of carts created
       artOfferedForSale[artIndex] = Offer(false, artIndex, msg.sender, 0, 0x0);
       ArtNoLongerForSale(artIndex);
     }
@@ -157,7 +157,7 @@ contract CryptoArt {
 
       // Check for the case where there is a bid from the new owner and refund it.
       // Any other bid can stay in place.
-      Bid bid artBids[artIndex];
+      Bid bid = artBids[artIndex];
       if (big.bidder == msg.sender) {
         // Kill bid and refund value
         pendingWithdrawals[msg.sender] += bid.value;
@@ -212,12 +212,12 @@ contract CryptoArt {
 
     function withdrawBidForArt(uint artIndex) {
       if (artIndex >= nextArtIndexToAssign) throw;
-      if (artIndexToAddress[artIndex]) == 0x0) throw;
+      if (artIndexToAddress[artIndex] == 0x0) throw;
       Bid bid = artBids[artIndex];
       if (bid.bidder != msg.sender) throw;
       ArtBidWithdrawn(artIndex, bid.value, msg.sender);
       uint amount = bid.value;
-      artBids[artIndex] = Bid(false, artIndex, 0x0, 0;
+      artBids[artIndex] = Bid(false, artIndex, 0x0, 0);
         // Refund the bid moeny
         msg.sender.transfer(amount);
     }
