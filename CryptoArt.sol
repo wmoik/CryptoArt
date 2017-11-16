@@ -15,11 +15,6 @@ contract CryptoArt {
     // As each art is created, it is assigned an index
     uint public nextArtIndexToAssign = 0;
 
-    // Stop boolean once the totalSupply limit is reached
-    bool public allArtAssigned = false;
-
-    uint public punksRemainingToAssign = 0;
-
     // The big mapping between an artIndexNumber and someones ethereum address
     mapping (uint => address) public artIndexToAddress;
 
@@ -31,7 +26,7 @@ contract CryptoArt {
 
     struct Offer {
       bool isForSale;
-      uint punkIndex;
+      uint artIndex;
       address seller;
       uint minValue;    // in ether
       address onlySellTo;   // specify to sell only to a specific person
@@ -39,7 +34,7 @@ contract CryptoArt {
 
     struct Bid {
       bool hasBid;
-      uint punkIndex;
+      uint artIndex;
       address bidder;
       uint value;
     }
@@ -48,7 +43,6 @@ contract CryptoArt {
     mapping (uint => Offer) public artsOfferedForSale
 
     // A record of the highest art bid
-
     mapping (uint => Bid) public artBids;
 
     mapping (address => uint) public pendingWithdrawals;
@@ -63,89 +57,56 @@ contract CryptoArt {
     event ArtBidWithdrawn(uint indeced artIndex, uint value, address indexed fromAddress);
     event ArtBought(uint indexed artIndex, uint value, address indexed fromAddress, address indexed toAddress);
     event ArtNoLongerForSale(uint indexed artIndex);
+    event ArtCreation(uint256 artIndex, uint256 indexed hashOfArt)
 
     /* Initialized contract with initial supply token to the creator of the contract */
     // The payable keyword here defines that this contract can accept ether, otherwise it will be rejected
     function cryptoArt() payable {
       owner = msg.sender;
-      totalSupply = 50000; // Change to the creation of numerous sub coins whena  new release of art is conducted
-      artRemainingToAssign = totalSupply;
+      totalSupply = 0; // Change to the creation of numerous sub coins when a new release of art is conducted
       name = "CRYPTOART";   // Sets the name for display purposes
       symbol = "CART";
       decimals=1;  // No decimals for artwork
 
     }
 
-    function cryptoArtRelease
+    function cryptoArtRelease(address to, uint256 hashOfArt) { // Able to accept vector? //Basic minting // Called once for every new artwork
+      if(msg.sender != owner) throw; // May need to remove this.
 
-    function setInitialOwner(address to, uint artIndex) {
-      if (msg.sender != owner) throw; // If a person calls this function that is not the owner, the do not proceed
-      //if (allArtAssigned) throw; //If all art has already been assigned then do not
-      if(artIndex > 50000) throw; //Max number of art is set to 50,000
-      if (artIndexToAddress[artIndex] != to) { // if the address of the punk is not the address being sent to
-        if (artIndexToAddress[artIndex] != 0x0) {
-          balanceOf[artIndexToAddress[artIndex]]--; // Subtract one art from
-        } else {
-          artRemainingToAssign--;
-        }
-        artIndexToAddress[artIndex] = to;
-        balanceOf[to]++;
-        Assign(to, artIndex); // Event gets logged
-        }
-      }
+      artIndexToAddress[nextArtIndexToAssign] = to;
+      balanceOf[to]++;
+      nextArtIndexToAssign++;
+
+      Assign(to, nextArtIndexToAssign);
+      ArtCreation(nextArtIndexToAssign, hashOfArt);
+
+      // Need to check if the hash already exists by checking ArtCreation Event log
+    }
 
     // function that calls setInitialOwner multiple times to assign multiple arts to different addresses with one call
-    function setInitialOwners(address[] adresses, uint[] indeces) {
+    function cryptoArtReleases(address[] addresses, uint256[] hashes) {
       if (msg.senger != owner) throw;
-      uint n = addresses.length;
+      uint n = hashes.length;
       for (uint i = 0; i < n; i++) {
-        setInitialOwner(addresses[i], indices[i]);
+        cryptoArtRelease(addresses[i], hashes[i]);
       }
     }
 
-    function createNewArt(uint numberGenerated) {
-      if (msg.senger != owner) throw;
 
-      for (uint i = 0; i < numberGenerated; i++) {
-        setInitialOwner(owner, indices[i]); // Assign newly generated art to owners account
-      }
-
-    }
-
-
-    //Not based on logic, allArtsAssigned event is determined with the ownder of contract call this function
-    function allInitialOwnersAssigned() {
-      if (msg.sender != ownder) throw;
-      allArtAssigned = true;
-    }
-
-    //Anyone can call this before all art is assigned
-    function getArt(uint artIndex) {
-      if (!allArtAssigned) throw;
-      if (artRemainingToAssign == 0) throw; //Seems redundant...
-      if (artIndex >= 2000) throw; //Only assign free 2,000 arts
-      artIndexToAddress[artIndex] = msg.sender;
-      balanceOf[msg.sender]++; ///Give msg sender 1 art
-      artRemainingToAssign--; //reduce arts remaining by 1
-      Assign(msg.sender, artIndex);
-      }
-
-
-    //Transfer ownership of a artwork to another user without requiring payment
+    //Transfer ownership of an artwork to another user without requiring payment
     function transferArt(address to, uint artIndex) {
-      if (!allArtAssigned) throw; // After all artworks are assigned you cannot transfer any artworks for free
       if (artIndexToAddress[artIndex]) != msg.sender) throw; //if the msg sender does not own the art work being transferred, then Stop
-      if (punkIndex >= 2000) throw; //Only allow people to transfer free artworks until 2000 is achieved
+      if (artIndex >= nextArtIndexToAssign) throw;
       if (artsOfferedForSale[artIndex].isForSale) {
-        ArtNoLongerForSale(punkIndex); // If the artwork was listed for sale and now it is bought, set it to Not For Sale;
+        ArtNoLongerForSale(artIndex); // If the artwork was listed for sale and now it is transferred, set it to Not For Sale;
       }
       artIndexToAddress[artIndex] = to; //Reassign index to new owner
       balanceOf[msg.sender]--; //reduce total owned by sender
       balanceOf[to]++;
       Transfer(msg.sender, to, 1);
-      ArtTransfer(msg.sender, to, punkIndex);
-      // Check for the case where there is a bid from the new ownder and refund it.
-      // Any other bid can stay in place. Because they can still get it from the new owner. This reduces wasted gas for those who bid. Any discourages malicious intent.
+      ArtTransfer(msg.sender, to, artIndex);
+      // Check for the case where there is a bid from the new owner and refund it.
+      // Any other bid can stay in place. Because they can still get it from the new owner. This reduces wasted gas for those who bid. And discourages malicious intent.
       Bid bid = artBids[artIndex];
       if (bid.bidder == to) {
         // Kill bid and refund value
@@ -154,35 +115,30 @@ contract CryptoArt {
       }
     }
 
-
     function artNoLongerForSale(uint artIndex) {
-      if (!allArtAssigned) throw;
-      if (artIndexToAddress[artIndex] != msg.sender) throw;
-      if (artIndex >= 50000) throw //If the index is above the upper limit of carts created
+      if (artIndexToAddress[artIndex] != msg.sender) throw; // if message sender does not own the artwork, they cannot call fxn
+      if (artIndex >= nextArtIndexToAssign) throw //If the index is above the upper limit of carts created
       artOfferedForSale[artIndex] = Offer(false, artIndex, msg.sender, 0, 0x0);
       ArtNoLongerForSale(artIndex);
     }
 
     function offArtForSale(uint artIndex, uint minSalePRiceInWei) {
-      if(!allArtAssigned) throw;
       if (artIndexToAddress[artIndex] != msg.sender) throw;
-      if (artIndex >= 50000) throw;
+      if (artIndex >= nextArtIndexToAssign) throw;
       artOfferedForSale[artIndex] = Offer(true, artIndex, msg.sender, minSalePriceInWei,0x0);
       ArtOffered(artIndex, minSalePriceInWei, 0x0);
     }
 
     function offerArtForSaleToAddress(uint artIndex, uint minSalePriceInWei, address toAddress) {
-      if (!allPunksAssigned) throw;
       if (artIndexToAddress[artIndex] != msg.sender) throw;
-      if (artIndex >= 50000) throw;
+      if (artIndex >= nextArtIndexToAssign) throw;
       artOfferedForSale[artIndex] = Offer(true, artIndex, msg.sender, minSalePriceInWei, toAddress);
       ArtOffered(artIndex, minSalePRiceInWei, toAddress);
     }
 
     function buyArt(uint artIndex) payable {
-      if (!allArtAssigned) throw;
       Offer offer = artOffereedForSale[artIndex];
-      if (artIndex >50000) throw;
+      if (artIndex >= nextArtIndexToAssign) throw;
       if (!offer.isForSale) throw; // Art not actually for sale;
       if (offer.onlySellTo != 0x0 && offer.onlySellTo != msg.sender) throw; // art not supposed to be sold to this user
       if (msg.value < offer.minValue) throw;  // Didn't send enough ETH;
@@ -211,20 +167,19 @@ contract CryptoArt {
 
     // Eth gets stored in contract. This is how anyone gets their money out
     function withdraw() {
-      if (!allArtAssigned) throw;
       uint amount = pendingWithdrawals[msg.sender];
-      //Remember to zero the pending refund before sending to precent re-entrancy attacks
+      //Remember to zero the pending refund before sending to prevent re-entrancy attacks
       pendingWithdrawals[msg.sender] = 0;
       msg.sender.transfer(amount);
     }
 
     function enterBidforArt(uint artIndex) payable {
-      if (artIndex >= 50000) throw;
-      if (!allArtAssigned) throw;
+      if (artIndex >= nextArtIndexToAssign) throw;
       if (artIndexToAddress[artIndex] == 0x0) throw;
       if (artIndexToAddress[artIndex] == msg.sender) throw;
       if (msg.value == 0) throw;
       Bid existing = artBids[artIndex];
+      if (existing.value >= msg.value) throw; // If the current bid is equal or higher to the newer bid, then throw
       if (existing.value > 0) {
         // Refund the failing bid
         pendingWithdrawals[existing.bidder] += existing.value;
@@ -235,8 +190,7 @@ contract CryptoArt {
 
 
     function acceptBidForArt(uint artIndex, uint minPrice) {
-      if (artIndex >= 50000) throw;
-      if (!allArtAssigned) throw;
+      if (artIndex >= nextArtIndexToAssign) throw;
       if (artIndexToAddress[artIndex] != msg.sender) throw;
       address seller = msg.sender;
       Bid bid = artBids[artIndex];
@@ -248,7 +202,7 @@ contract CryptoArt {
       balanceOf[bid.bidder]++;
       Transfer(seller, bid.bidder, 1);
 
-      punksOfferedForSale[artIndex] = Offer(false, artIndex, bid.bidder, 0, 0x0);
+      artOfferedForSale[artIndex] = Offer(false, artIndex, bid.bidder, 0, 0x0);
       uint amount = bid.value;
       artBids[artIndex] = Bid(false, artIndex, 0x0, 0);
       pendingWithdrawals[seller] += amount;
@@ -257,8 +211,7 @@ contract CryptoArt {
     }
 
     function withdrawBidForArt(uint artIndex) {
-      if (artIndex >= 50000) throw;
-      if (!allArtAssigned) throw;
+      if (artIndex >= nextArtIndexToAssign) throw;
       if (artIndexToAddress[artIndex]) == 0x0) throw;
       Bid bid = artBids[artIndex];
       if (bid.bidder != msg.sender) throw;
@@ -268,22 +221,6 @@ contract CryptoArt {
         // Refund the bid moeny
         msg.sender.transfer(amount);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 }
